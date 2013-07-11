@@ -32,3 +32,6 @@ Yes.
 
 = 0.2 =
 * First production release.
+
+= 0.3 =
+* Skipping resize if original image is too small.

@@ -4,7 +4,7 @@ Plugin Name: Featured Image Resize
 Plugin URI: http://wordpress.org/plugins/featured-image-resize/
 Description: This plugin will regenerate all missing image sizes for an image when it's chosen as a featured image for any post. Very useful when you change your template. No settings whatsoever, just activate and forget.
 Author: Louy Alakkad
-Version: 0.2
+Version: 0.3
 Author URI: http://l0uy.com/
 */
 
@@ -13,7 +13,9 @@ function featured_image_resize_if_missing() {
 	$thumbnail_id = $_REQUEST['thumbnail_id'];
 	if( !is_numeric($thumbnail_id) ) return false;
 	
-	$sizes = get_intermediate_image_sizes();
+	global $_wp_additional_image_sizes;
+	$sizes = $_wp_additional_image_sizes;
+	if( !is_array($sizes) || !count($sizes) ) return;
 	
 	$imagedata = wp_get_attachment_metadata( $thumbnail_id );
 	
@@ -27,16 +29,23 @@ function featured_image_resize_if_missing() {
 	} else {
 		// check if all sizes exist
 		
-		$missing = array();
+		$missing = false;
 		
-		foreach( $sizes as $size ) {
+		foreach( $sizes as $size => $data ) {
 			if ( !array_key_exists($size, $imagedata['sizes']) ) {
-				// TODO: check if original image is smaller than size
-				$missing[] = $size;
+				// check if original image is bigger than size
+				$original = wp_get_attachment_image_src($thumbnail_id, 'original');
+				if( is_array($original) ) {
+					if( $data['width' ] <= $original[1] &&
+						$data['height'] <= $original[2] ) {
+						$missing = true;
+						break;
+					}
+				}
 			}
 		}
 		
-		if( count($missing) == 0 )
+		if( !$missing )
 			return false;
 	}
 	

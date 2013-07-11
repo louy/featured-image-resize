@@ -8,3 +8,47 @@ Version: 0.1
 Author URI: http://l0uy.com/
 */
 
+//add_action('wp_ajax_set-post-thumbnail-test','create_sizes_if_missing',1);
+add_action('wp_ajax_set-post-thumbnail','create_sizes_if_missing',1);
+function create_sizes_if_missing() {
+	$thumbnail_id = $_REQUEST['thumbnail_id'];
+	if( !is_numeric($thumbnail_id) ) return false;
+	global $wpdb;
+	
+	$sizes = get_intermediate_image_sizes();
+	
+	$imagedata = wp_get_attachment_metadata( $thumbnail_id );
+	
+	/*echo '<pre>', print_r($imagedata,true), '</pre>';
+	if($_REQUEST['action'] == 'set-post-thumbnail-test') exit;*/
+	
+	if ( !is_array( $imagedata ) ) {
+		// image has no metadata, check for existence
+		
+		$post_exists = $wpdb->get_row("SELECT * FROM $wpdb->posts WHERE id = '" . $thumbnail_id . "'", 'ARRAY_A');
+		if( !$post_exists ) return false;
+		
+	} else {
+		// check if all sizes exist
+		
+		$missing = array();
+		
+		foreach( $sizes as $size ) {
+			if ( !array_key_exists($size, $imagedata['sizes']) ) {
+				// TODO: check if original image is smaller than size
+				$missing[] = $size;
+			}
+		}
+		
+		if( count($missing) == 0 )
+			return false;
+	}
+	
+	// regenerate thumbnails
+	$upload_dir = wp_upload_dir();
+	$image_path = str_replace( $upload_dir['baseurl'], $upload_dir['basedir'], wp_get_attachment_url( $thumbnail_id ) );
+	$new = wp_generate_attachment_metadata( $thumbnail_id, $image_path );
+	wp_update_attachment_metadata( $thumbnail_id, $new );
+	
+	return;
+}
